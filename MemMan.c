@@ -28,7 +28,7 @@ int main() {
 
 		//important data is stored here
 		int page = address >> n;
-		int offset = address | (0xffff >> m);
+		int offset = address & (0xffff >> m);
 
 		printf("Virtual address %i is in page number %i and offset %i \n", address, page, offset);
 		
