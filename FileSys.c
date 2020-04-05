@@ -131,6 +131,10 @@ int fs_create(char name[], int size) {
 		sb.nodes[freenode].blckpnts[i] = freeblocks[i];
 	}
 
+	// It might be prudent to zero out the blocks either here or in deletion, as
+	// currently there may be leftover data that would be accessible if fs_read()
+	// was called before fs_write().
+
 	// Write super block changes to disk
 	if(writesb() == -1)
 		return -1;
@@ -179,6 +183,7 @@ int fs_delete(char name[]) {
 int fs_ls() {
 	
 	// List of files from super block
+	//printf("Files:\n");
 	for(int i = 0; i < 16; i++) {
 		if(sb.nodes[i].used)
 			printf("%s %i\n", sb.nodes[i].name, sb.nodes[i].size);
@@ -187,15 +192,117 @@ int fs_ls() {
 }
 
 // Read data from a file in the file system
-int fs_read(char name[], int blockNum, char buf[]) {
-	// TODO: implementation
+int fs_read(char name[], int blocknum, char buf[]) {
+	
+	// Search for file with given name
+	int nodeindex = -1;
+	for(int i = 0; i < 16; i++) {
+		if(sb.nodes[i].used != 0 && strcmp(sb.nodes[i].name, name) == 0) {
+			nodeindex = i;
+			break;
+		}
+	}
+	if(nodeindex == -1) {
+		fprintf(stderr, "Cannot read from file %s: no file of given name.\n", name);
+		return -1;
+	}
+
+	// Calculate offset
+	int offset = 1024 * sb.nodes[nodeindex].blckpnts[blocknum];
+
+	// Read into buffer from block
+	if(pread(fdesc, buf, 1024, offset) == -1) {
+		fprintf(stderr, "Failed to read from file %s: %i\n", name, errno);
+		return -1;
+	} else {
+		printf("Finished reading from file %s.\n", name);
+	}
+
 	return 0;
 }
 
 // Write data to a file in the file system
-int fs_write(char name[], int blockNum, char buf[]) {
-	// TODO: implementation
+int fs_write(char name[], int blocknum, char buf[]) {
+
+	// Search for file with given name
+	int nodeindex = -1;
+	for(int i = 0; i < 16; i++) {
+		if(sb.nodes[i].used != 0 && strcmp(sb.nodes[i].name, name) == 0) {
+			nodeindex = i;
+			break;
+		}
+	}
+	if(nodeindex == -1) {
+		fprintf(stderr, "Cannot write to file %s: no file of given name.\n", name);
+		return -1;
+	}
+
+	// Calculate offset
+	int offset = sb.nodes[nodeindex].blckpnts[blocknum] << 10;
+
+	// Write from buffer into file
+	if(pwrite(fdesc, buf, 1024, offset) == -1) {
+		fprintf(stderr, "Failed to write to file %s: %i\n", name, errno);
+		return -1;
+	} else {
+		printf("Finished writing to file %s.\n", name);
+	}
+	
 	return 0;
+
+}
+
+// Run instructions from a given input file
+int runinstr(char input[]) {
+
+	// Open file
+	FILE *fpnt = fopen(input, "r");
+
+	// Read disk name
+	char disk[255];
+	fscanf(fpnt, "%s", disk);
+
+	// Scan through list of actions
+	char action[2];
+	while(fscanf(fpnt, "%s", action) != EOF) {
+
+		if(action[0] == 'C') {
+			char name[9];
+			int size;
+			fscanf(fpnt, "%s", name);
+			fscanf(fpnt, "%i", &size);
+			fs_create(name, size);
+		} else if(action[0] == 'D') {
+			char name[9];
+			fscanf(fpnt, "%s", name);
+			fs_delete(name);
+		} else if(action[0] == 'L') {
+			fs_ls();
+		} else if(action[0] == 'R') {
+			char name[9];
+			int pos;
+			fscanf(fpnt, "%s", name);
+			fscanf(fpnt, "%i", &pos);
+			char buffer[1024];
+			fs_read(name, pos, buffer);
+		} else if(action[0] == 'W') {
+			char name[9];
+			int pos;
+			fscanf(fpnt, "%s", name);
+			fscanf(fpnt, "%i", &pos);
+			fs_write(name, pos, "write some text");
+		} else {
+			fprintf(stderr, "Unrecognized instruction: %s\n", action);
+			fclose(fpnt);
+			return -1;
+		}
+
+	}
+
+	// Close file and return
+	fclose(fpnt);
+	return 0;
+
 }
 
 int main(int argc, char *argv[]) {
@@ -269,7 +376,7 @@ int main(int argc, char *argv[]) {
 	printf(" Complete\n");
 
 	// Actions on the filesystem can now be taken here
-	fs_ls();
+	runinstr("lab3input.txt");
 
 	// Close filesystem
 	close(fdesc);

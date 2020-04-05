@@ -2,4 +2,6 @@ MemMan
 FileSys
 create_fs
 lab3.create_fs.c
+lab3input.txt
 filesystem
+disk0
