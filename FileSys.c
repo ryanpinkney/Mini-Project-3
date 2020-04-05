@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 
 typedef struct {
 	char name[8];
@@ -14,6 +15,9 @@ typedef struct {
 	char fbl[128];
 	INode nodes[16];
 } SuperBlock;
+
+char *name;
+int fdesc;
 
 int fs_create(char name[], int size) {
 	return 0;
@@ -39,24 +43,32 @@ int main(int argc, char *argv[]) {
 
 	// Check that we have an argument
 	if (argc != 2 ) {
-		fprintf(stderr, "usage: %s <diskFileName> \n", argv[0]);
-		exit(0);
+		fprintf(stderr, "usage: %s <diskFileName>\n", argv[0]);
+		exit(1);
 	}
 
 	// Take filesystem name from args
-	char *name = argv[1];
+	name = argv[1];
+	
+	// Open filesystem and store descriptor
+	fdesc = open(argv[1], O_RDWR);
+	if(fdesc == -1) {
+		fprintf(stderr, "Opening %s failed: %i\n", name, errno);
+		exit(1);
+	}
+
+	// Parse super block from first 1KB
+	printf("Reading super block of %s...", name);
+	SuperBlock sb;
 
 	// Buffer for reading and writing
 	char buffer[1024];
-	
-	// Open filesystem and store descriptor
-	int fdesc = open(argv[1], O_RDWR);
-
-	// Parse super block from first 1KB
-	SuperBlock sb;
 
 	// Read full super block into buffer
-	pread(fdesc, buffer, 1024, 0);
+	if(pread(fdesc, buffer, 1024, 0) == -1) {
+		fprintf(stderr, "Reading %s failed: %i\n", name, errno);
+		exit(1);
+	}
 	
 	// Scanning position in buffer
 	int pos = 0;
@@ -95,6 +107,8 @@ int main(int argc, char *argv[]) {
 		}
 
 	}
+
+	printf(" Complete\n");
 
 	// Actions on the filesystem can now be taken here
 
