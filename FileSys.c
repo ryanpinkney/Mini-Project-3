@@ -8,7 +8,7 @@
 typedef struct {
 	char name[9];
 	int size;
-	int blockPointers[8];
+	int blckpnts[8];
 	int used;
 } INode;
 
@@ -21,6 +21,7 @@ char *diskname;
 int fdesc;
 SuperBlock sb;
 
+// Helper function to write the in-memory super block to disk
 int writesb() {
 
 	// Buffer for writing
@@ -50,7 +51,7 @@ int writesb() {
 		// Insert block pointers
 		for(int j = 0; j < 8; j++) {
 			for(int k = 0; k < 4; k++) {
-				buffer[pos++] = (sb.nodes[i].blockPointers[j] >> ((3 - k) << 3)) & 0xff;
+				buffer[pos++] = (sb.nodes[i].blckpnts[j] >> ((3 - k) << 3)) & 0xff;
 			}
 		}
 
@@ -63,7 +64,7 @@ int writesb() {
 
 	// Write buffer to disk
 	if(pwrite(fdesc, buffer, 1024, 0) == -1) {
-		fprintf(stderr, "Writing %s failed: %i\n", diskname, errno);
+		fprintf(stderr, "Writing %s failed: %i.\n", diskname, errno);
 		return -1;
 	}
 
@@ -71,6 +72,7 @@ int writesb() {
 
 }
 
+// Create a new file in the file system
 int fs_create(char name[], int size) {
 
 	// Check input parameters
@@ -79,7 +81,7 @@ int fs_create(char name[], int size) {
 		return -1;
 	}
 	if(size > 8) {
-		fprintf(stderr, "Cannot create file %s: requested size too large \n", name);
+		fprintf(stderr, "Cannot create file %s: requested size too large.\n", name);
 		return -1;
 	}
 	
@@ -126,24 +128,57 @@ int fs_create(char name[], int size) {
 	// Allocate free blocks
 	for(int i = 0; i < size; i++) {
 		sb.fbl[freeblocks[i]] = 1;
-		sb.nodes[freenode].blockPointers[i] = freeblocks[i];
+		sb.nodes[freenode].blckpnts[i] = freeblocks[i];
 	}
 
+	// Write super block changes to disk
 	if(writesb() == -1)
 		return -1;
 	else
-		printf("Write complete for file %s of size %i\n", name, size);
+		printf("Creation complete for file %s.\n", name);
 
 	return 0;
 
 }
 
+// Delete a file from the file system
 int fs_delete(char name[]) {
+	
+	// Search for file with given name
+	int nodeindex = -1;
+	for(int i = 0; i < 16; i++) {
+		if(sb.nodes[i].used != 0 && strcmp(sb.nodes[i].name, name) == 0) {
+			nodeindex = i;
+			break;
+		}
+	}
+	if(nodeindex == -1) {
+		fprintf(stderr, "Cannot delete file %s: no file of given name.\n", name);
+		return -1;
+	}
+
+	// Free up blocks in free block list
+	for(int i = 0; i < sb.nodes[nodeindex].size; i++) {
+		sb.fbl[sb.nodes[nodeindex].blckpnts[i]] = 0;
+	}
+
+	// Free up node
+	sb.nodes[nodeindex].used = 0;
+
+	// Write super block changes to disk
+	if(writesb() == -1)
+		return -1;
+	else
+		printf("Deletion complete for file %s.\n", name);
+
 	return 0;
+
 }
 
+// List files currently in the file system
 int fs_ls() {
 	
+	// List of files from super block
 	for(int i = 0; i < 16; i++) {
 		if(sb.nodes[i].used)
 			printf("%s %i\n", sb.nodes[i].name, sb.nodes[i].size);
@@ -151,11 +186,15 @@ int fs_ls() {
 
 }
 
+// Read data from a file in the file system
 int fs_read(char name[], int blockNum, char buf[]) {
+	// TODO: implementation
 	return 0;
 }
 
+// Write data to a file in the file system
 int fs_write(char name[], int blockNum, char buf[]) {
+	// TODO: implementation
 	return 0;
 }
 
@@ -173,7 +212,7 @@ int main(int argc, char *argv[]) {
 	// Open filesystem and store descriptor
 	fdesc = open(argv[1], O_RDWR);
 	if(fdesc == -1) {
-		fprintf(stderr, "Opening %s failed: %i\n", diskname, errno);
+		fprintf(stderr, "Opening %s failed: %i.\n", diskname, errno);
 		exit(1);
 	}
 
@@ -185,7 +224,7 @@ int main(int argc, char *argv[]) {
 
 	// Read full super block into buffer
 	if(pread(fdesc, buffer, 1024, 0) == -1) {
-		fprintf(stderr, "Reading %s failed: %i\n", diskname, errno);
+		fprintf(stderr, "Reading %s failed: %i.\n", diskname, errno);
 		exit(1);
 	}
 	
@@ -214,8 +253,8 @@ int main(int argc, char *argv[]) {
 		// Extract block pointers
 		for(int j = 0; j < 8; j++) {
 			for(int k = 0; k < 4; k++) {
-				sb.nodes[i].blockPointers[j] <<= 8;
-				sb.nodes[i].blockPointers[j] |= buffer[pos++];
+				sb.nodes[i].blckpnts[j] <<= 8;
+				sb.nodes[i].blckpnts[j] |= buffer[pos++];
 			}
 		}
 
