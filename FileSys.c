@@ -376,7 +376,7 @@ int main(int argc, char *argv[]) {
 	printf(" Complete\n");
 
 	// Actions on the filesystem can now be taken here
-	runinstr("lab3input.txt");
+	//runinstr("lab3input.txt");
 
 	// Close filesystem
 	close(fdesc);
