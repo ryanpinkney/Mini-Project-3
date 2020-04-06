@@ -1,7 +1,8 @@
-MemMan
-FileSys
-create_fs
-lab3.create_fs.c
-lab3input.txt
-filesystem
-disk0
+Part-1/MemMan
+
+Part-2/FileSys
+Part-2/create_fs
+Part-2/lab3.create_fs.c
+Part-2/lab3input.txt
+Part-2/filesystem
+Part-2/disk0
