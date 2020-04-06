@@ -18,7 +18,9 @@ typedef struct {
 } SuperBlock;
 
 char *diskname;
-int fdesc;
+char *input;
+int diskfd;
+int inputfd;
 SuperBlock sb;
 
 // Helper function to write the in-memory super block to disk
@@ -63,7 +65,7 @@ int writesb() {
 	}
 
 	// Write buffer to disk
-	if(pwrite(fdesc, buffer, 1024, 0) == -1) {
+	if(pwrite(diskfd, buffer, 1024, 0) == -1) {
 		fprintf(stderr, "Writing %s failed: %i.\n", diskname, errno);
 		return -1;
 	}
@@ -189,6 +191,8 @@ int fs_ls() {
 			printf("%s %i\n", sb.nodes[i].name, sb.nodes[i].size);
 	}
 
+	return 0;
+
 }
 
 // Read data from a file in the file system
@@ -211,7 +215,7 @@ int fs_read(char name[], int blocknum, char buf[]) {
 	int offset = 1024 * sb.nodes[nodeindex].blckpnts[blocknum];
 
 	// Read into buffer from block
-	if(pread(fdesc, buf, 1024, offset) == -1) {
+	if(pread(diskfd, buf, 1024, offset) == -1) {
 		fprintf(stderr, "Failed to read from file %s: %i\n", name, errno);
 		return -1;
 	} else {
@@ -241,7 +245,7 @@ int fs_write(char name[], int blocknum, char buf[]) {
 	int offset = sb.nodes[nodeindex].blckpnts[blocknum] << 10;
 
 	// Write from buffer into file
-	if(pwrite(fdesc, buf, 1024, offset) == -1) {
+	if(pwrite(diskfd, buf, 1024, offset) == -1) {
 		fprintf(stderr, "Failed to write to file %s: %i\n", name, errno);
 		return -1;
 	} else {
@@ -252,56 +256,45 @@ int fs_write(char name[], int blocknum, char buf[]) {
 
 }
 
-// Run instructions from a given input file
-int runinstr(char input[]) {
+// Read the line of the file given by fd, starting from offset, into a buffer of size 32.
+// Returns offset of first character from next line.
+int readline(int fd, char buffer[], int offset) {
 
-	// Open file
-	FILE *fpnt = fopen(input, "r");
+	// Read bytes from file
+	int bytesread = pread(fd, buffer, 32, offset);
 
-	// Read disk name
-	char disk[255];
-	fscanf(fpnt, "%s", disk);
-
-	// Scan through list of actions
-	char action[2];
-	while(fscanf(fpnt, "%s", action) != EOF) {
-
-		if(action[0] == 'C') {
-			char name[9];
-			int size;
-			fscanf(fpnt, "%s", name);
-			fscanf(fpnt, "%i", &size);
-			fs_create(name, size);
-		} else if(action[0] == 'D') {
-			char name[9];
-			fscanf(fpnt, "%s", name);
-			fs_delete(name);
-		} else if(action[0] == 'L') {
-			fs_ls();
-		} else if(action[0] == 'R') {
-			char name[9];
-			int pos;
-			fscanf(fpnt, "%s", name);
-			fscanf(fpnt, "%i", &pos);
-			char buffer[1024];
-			fs_read(name, pos, buffer);
-		} else if(action[0] == 'W') {
-			char name[9];
-			int pos;
-			fscanf(fpnt, "%s", name);
-			fscanf(fpnt, "%i", &pos);
-			fs_write(name, pos, "write some text");
-		} else {
-			fprintf(stderr, "Unrecognized instruction: %s\n", action);
-			fclose(fpnt);
-			return -1;
-		}
-
+	// Check if there was a failure or end of file
+	if(bytesread < 0) {
+		fprintf(stderr, "Could not read from file.\n");
+		return -1;
+	}
+	if(bytesread == 0) {
+		return -1;
 	}
 
-	// Close file and return
-	fclose(fpnt);
-	return 0;
+	// Search for the end of line within buffer
+	int lineindex = 0;
+	while(lineindex < bytesread) {
+		if(buffer[lineindex] == '\n' || buffer[lineindex] == '\r') {
+			buffer[lineindex++] = '\0';
+			break;
+		}
+		lineindex++;
+	}
+
+	// If the line goes on to end of file, add null terminator to buffer
+	if(lineindex == bytesread) {
+		buffer[lineindex + 1] = '\0';
+		return offset + lineindex + 1;
+	}
+
+	// Calculate the starting index of the next line
+	int nextindex = lineindex;
+	while(buffer[nextindex] == '\n' || buffer[nextindex] == '\r') {
+		nextindex++;
+	}
+
+	return offset + nextindex;
 
 }
 
@@ -309,28 +302,48 @@ int main(int argc, char *argv[]) {
 
 	// Check that we have an argument
 	if (argc != 2 ) {
-		fprintf(stderr, "usage: %s <diskFileName>\n", argv[0]);
+		fprintf(stderr, "usage: %s <input file name>\n", argv[0]);
 		exit(1);
 	}
 
-	// Take filesystem name from args
-	diskname = argv[1];
+	// Take input file name from args
+	input = argv[1];
 	
-	// Open filesystem and store descriptor
-	fdesc = open(argv[1], O_RDWR);
-	if(fdesc == -1) {
+	// Open input file and store descriptor
+	inputfd = open(input, O_RDWR | O_DSYNC);
+	if(inputfd == -1) {
 		fprintf(stderr, "Opening %s failed: %i.\n", diskname, errno);
 		exit(1);
 	}
 
+	// Setup variables to read input file line by line
+	char linebuffer[32];
+	int nextline = 0;
+
+	// Read disk name from input file
+	nextline = readline(inputfd, linebuffer, 0);
+	if(nextline == -1) {
+		fprintf(stderr, "Could not read disk name from input file.");
+		exit(1);
+	}
+	char diskname[strlen(linebuffer) + 1];
+	strcpy(diskname, linebuffer);
+
 	// Parse super block from first 1KB
 	printf("Reading super block of %s...", diskname);
+
+	// Open filesystem and store descriptor
+	diskfd = open(diskname, O_RDWR | O_DSYNC);
+	if(diskfd == -1) {
+		fprintf(stderr, "Opening %s failed: %i.\n", diskname, errno);
+		exit(1);
+	}
 
 	// Buffer for reading and writing
 	char buffer[1024];
 
 	// Read full super block into buffer
-	if(pread(fdesc, buffer, 1024, 0) == -1) {
+	if(pread(diskfd, buffer, 1024, 0) == -1) {
 		fprintf(stderr, "Reading %s failed: %i.\n", diskname, errno);
 		exit(1);
 	}
@@ -375,11 +388,95 @@ int main(int argc, char *argv[]) {
 
 	printf(" Complete\n");
 
-	// Actions on the filesystem can now be taken here
-	//runinstr("lab3input.txt");
+	// Start reading and executing instructions from input file
+	nextline = readline(inputfd, linebuffer, nextline);
+	while(nextline != -1) {
+
+		//sleep(1);
+
+		// Perform instruction based on first character of line
+		char action = linebuffer[0];
+		if(action == 'L') {
+
+			fs_ls();
+
+		} else if(action == 'C') {
+
+			// Read name from line buffer
+			int namelen = strlen(linebuffer) - 4;
+			char name[namelen + 1];
+			name[namelen] = '\0';
+			//printf("test\n"); // If this line is omitted there seem to be I/O synchronization issues.
+			for(int i = 0; i < namelen; i++) {
+				name[i] = linebuffer[i + 2];
+			}
+
+			// Read size from line buffer
+			int size = linebuffer[strlen(linebuffer) - 1] - '0';
+
+			fs_create(name, size);
+
+		} else if(action == 'D') {
+
+			// Read name from line buffer
+			int namelen = strlen(linebuffer) - 2;
+			char name[namelen + 1];
+			name[namelen] = '\0';
+			for(int i = 0; i < namelen; i++) {
+				name[i] = linebuffer[i + 2];
+			}
+
+			fs_delete(name);
+
+		} else if(action == 'R') {
+
+			// Read name from line buffer
+			int namelen = strlen(linebuffer) - 4;
+			char name[namelen + 1];
+			name[namelen] = '\0';
+			for(int i = 0; i < namelen; i++) {
+				name[i] = linebuffer[i + 2];
+			}
+
+			// Get position from line buffer
+			int readpos = linebuffer[strlen(linebuffer) - 1] - '0';
+
+			// Set up dummy buffer
+			char readbuffer[1024];
+
+			fs_read(name, readpos, readbuffer);
+
+		} else if(action == 'W') {
+
+			// Read name from line buffer
+			int namelen = strlen(linebuffer) - 4;
+			char name[namelen + 1];
+			name[namelen] = '\0';
+			for(int i = 0; i < namelen; i++) {
+				name[i] = linebuffer[i + 2];
+			}
+
+			// Get position from line buffer
+			int writepos = linebuffer[strlen(linebuffer) - 1] - '0';
+
+			// Set up dummy buffer
+			char writebuffer[] = "I learned a lot from COSC 315!";
+
+			fs_write(name, writepos, writebuffer);
+
+		} else {
+			fprintf(stderr, "Unrecognized instruction: %c", action);
+			exit(1);
+		}
+
+		// Read new line from file
+		nextline = readline(inputfd, linebuffer, nextline);
+
+	}
 
 	// Close filesystem
-	close(fdesc);
+	close(inputfd);
+	close(diskfd);
 
 	return 0;
 
