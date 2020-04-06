@@ -77,6 +77,8 @@ int writesb() {
 // Create a new file in the file system
 int fs_create(char name[], int size) {
 
+	printf("Creating file %s of size %i\n", name, size);
+
 	// Check input parameters
 	if(strlen(name) > 8) {
 		fprintf(stderr, "Cannot create file %s: file name too long.\n", name);
@@ -149,6 +151,8 @@ int fs_create(char name[], int size) {
 
 // Delete a file from the file system
 int fs_delete(char name[]) {
+
+	printf("Deleting file %s\n", name);
 	
 	// Search for file with given name
 	int nodeindex = -1;
@@ -183,9 +187,10 @@ int fs_delete(char name[]) {
 
 // List files currently in the file system
 int fs_ls() {
+
+	printf("Listing Files\n");
 	
 	// List of files from super block
-	//printf("Files:\n");
 	for(int i = 0; i < 16; i++) {
 		if(sb.nodes[i].used)
 			printf("%s %i\n", sb.nodes[i].name, sb.nodes[i].size);
@@ -197,6 +202,8 @@ int fs_ls() {
 
 // Read data from a file in the file system
 int fs_read(char name[], int blocknum, char buf[]) {
+
+	printf("Reading from block %i of file %s\n", blocknum, name);
 	
 	// Search for file with given name
 	int nodeindex = -1;
@@ -227,6 +234,8 @@ int fs_read(char name[], int blocknum, char buf[]) {
 
 // Write data to a file in the file system
 int fs_write(char name[], int blocknum, char buf[]) {
+
+	printf("Writing to block %i of file %s\n", blocknum, name);
 
 	// Search for file with given name
 	int nodeindex = -1;
@@ -398,6 +407,8 @@ int main(int argc, char *argv[]) {
 		char action = linebuffer[0];
 		if(action == 'L') {
 
+			printf("\nAction: L\n");
+
 			fs_ls();
 
 		} else if(action == 'C') {
@@ -406,7 +417,12 @@ int main(int argc, char *argv[]) {
 			int namelen = strlen(linebuffer) - 4;
 			char name[namelen + 1];
 			name[namelen] = '\0';
-			//printf("test\n"); // If this line is omitted there seem to be I/O synchronization issues.
+
+			// If this line is omitted there seem to be I/O synchronization issues.
+			printf("\nAction: C\n");
+			// Commenting out this line causes the program to segfault at unpredictable times.
+			// Corresponding lines for the other actions do not seem to have this problem.
+
 			for(int i = 0; i < namelen; i++) {
 				name[i] = linebuffer[i + 2];
 			}
@@ -422,6 +438,7 @@ int main(int argc, char *argv[]) {
 			int namelen = strlen(linebuffer) - 2;
 			char name[namelen + 1];
 			name[namelen] = '\0';
+			printf("\nAction: D\n");
 			for(int i = 0; i < namelen; i++) {
 				name[i] = linebuffer[i + 2];
 			}
@@ -434,6 +451,7 @@ int main(int argc, char *argv[]) {
 			int namelen = strlen(linebuffer) - 4;
 			char name[namelen + 1];
 			name[namelen] = '\0';
+			printf("\nAction: R\n");
 			for(int i = 0; i < namelen; i++) {
 				name[i] = linebuffer[i + 2];
 			}
@@ -452,6 +470,7 @@ int main(int argc, char *argv[]) {
 			int namelen = strlen(linebuffer) - 4;
 			char name[namelen + 1];
 			name[namelen] = '\0';
+			printf("\nAction: W\n");
 			for(int i = 0; i < namelen; i++) {
 				name[i] = linebuffer[i + 2];
 			}
