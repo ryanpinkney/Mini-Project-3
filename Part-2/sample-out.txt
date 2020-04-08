@@ -1,0 +1,147 @@
+Reading super block of disk0... Complete
+
+Action: C
+Creating file file1.c of size 3
+Cannot create file file1.c: file named file1.c already exists.
+
+Action: C
+Creating file file2.c of size 8
+Cannot create file file2.c: file named file2.c already exists.
+
+Action: C
+Creating file file3.c of size 4
+Cannot create file file3.c: file named file3.c already exists.
+
+Action: C
+Creating file a.out of size 5
+Creation complete for file a.out.
+
+Action: C
+Creating file lab1.jav of size 6
+Creation complete for file lab1.jav.
+
+Action: L
+Listing Files
+lab1.jav 6
+a.out 5
+file3.c 4
+lab2.jav 7
+a.out   5
+file4.c 7
+file2.c 8
+file1.c 3
+
+Action: W
+Writing to block 0 of file file1.c
+Finished writing to file file1.c.
+
+Action: W
+Writing to block 1 of file file1.c
+Finished writing to file file1.c.
+
+Action: W
+Writing to block 2 of file file1.c
+Finished writing to file file1.c.
+
+Action: W
+Writing to block 3 of file file2.c
+Finished writing to file file2.c.
+
+Action: W
+Writing to block 7 of file file2.c
+Finished writing to file file2.c.
+
+Action: W
+Writing to block 2 of file file2.c
+Finished writing to file file2.c.
+
+Action: W
+Writing to block 4 of file file2.c
+Finished writing to file file2.c.
+
+Action: W
+Writing to block 5 of file file2.c
+Finished writing to file file2.c.
+
+Action: W
+Writing to block 0 of file a.out
+Finished writing to file a.out.
+
+Action: W
+Writing to block 1 of file a.out
+Finished writing to file a.out.
+
+Action: W
+Writing to block 2 of file a.out
+Finished writing to file a.out.
+
+Action: W
+Writing to block 3 of file a.out
+Finished writing to file a.out.
+
+Action: W
+Writing to block 4 of file a.out
+Finished writing to file a.out.
+
+Action: D
+Deleting file file3.c
+Deletion complete for file file3.c.
+
+Action: R
+Reading from block 2 of file file1.c
+Finished reading from file file1.c.
+
+Action: C
+Creating file file4.c of size 7
+Cannot create file file4.c: file named file4.c already exists.
+
+Action: L
+Listing Files
+lab1.jav 6
+a.out 5
+lab2.jav 7
+a.out   5
+file4.c 7
+file2.c 8
+file1.c 3
+
+Action: R
+Reading from block 4 of file file2.c
+Finished reading from file file2.c.
+
+Action: R
+Reading from block 5 of file file2.c
+Finished reading from file file2.c.
+
+Action: R
+Reading from block 6 of file file2.c
+Finished reading from file file2.c.
+
+Action: D
+Deleting file lab1.jav
+Deletion complete for file lab1.jav.
+
+Action: C
+Creating file lab2.jav of size 7
+Cannot create file lab2.jav: file named lab2.jav already exists.
+
+Action: R
+Reading from block 1 of file a.out
+Finished reading from file a.out.
+
+Action: R
+Reading from block 3 of file a.out
+Finished reading from file a.out.
+
+Action: R
+Reading from block 0 of file a.out
+Finished reading from file a.out.
+
+Action: L
+Listing Files
+a.out 5
+lab2.jav 7
+a.out   5
+file4.c 7
+file2.c 8
+file1.c 3

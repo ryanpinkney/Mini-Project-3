@@ -1,0 +1,5 @@
+what file name are you using: input.txt
+n=11 
+m=5 
+Virtual address 45045 is in page number 21 and offset 2037 
+Virtual address 26990 is in page number 13 and offset 366 
