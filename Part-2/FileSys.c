@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
+// Container to store a single index node of the super block
 typedef struct {
 	char name[9];
 	int size;
@@ -12,15 +13,21 @@ typedef struct {
 	int used;
 } INode;
 
+// Used to store the super block's data in memory
 typedef struct {
 	char fbl[128];
 	INode nodes[16];
 } SuperBlock;
 
+// File names of the disk and input files
 char *diskname;
 char *input;
+
+// File descriptors of the disk and input files
 int diskfd;
 int inputfd;
+
+// Super block as an in-memory object
 SuperBlock sb;
 
 // Helper function to write the in-memory super block to disk
